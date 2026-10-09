@@ -1,0 +1,241 @@
+<body bgcolor=black>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=webgl.js></script>
+<script>
+
+function Scene() {
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos;
+   out vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.);
+      vPos = aPos;
+   }`;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   // DEBUG: 0 = normal render, 1 = show normals, 2 = show diffuse light only
+   #define DEBUG 0
+
+   uniform float uTime;
+   in  vec3 vPos;
+   out vec4 fragColor;
+
+   // ---------- tunable constants ----------
+   const vec3  LIGHT_COL   = vec3(1.0, 0.96, 0.80);   // fluorescent tint
+   const float PANEL_EMIT  = 6.0;                      // HDR brightness of the panels
+   const float ATTEN_K     = 0.05;                     // 1 / (1 + K * d^2)
+   const vec3  AMBIENT     = vec3(0.10, 0.095, 0.07);
+   const vec3  FOG_COL     = vec3(0.05, 0.045, 0.02);
+   const float FOG_DENSITY = 0.012;
+
+   // ---------- noise ----------
+   float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+   }
+
+   float vnoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      f = f * f * (3. - 2. * f);
+      return mix(mix(hash(i),               hash(i + vec2(1., 0.)), f.x),
+                 mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y);
+   }
+
+   void main() {
+      fragColor = vec4(0.0);
+
+      // Camera
+      vec3 camera = vec3(0., 0., 2.8);
+      vec3 target = vec3(0., 0., -2.);
+
+      vec3 forward = normalize(target - camera);
+      vec3 right   = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+      vec3 up      = cross(right, forward);
+
+      vec3 rayOrigin = camera;
+      vec3 rayDir = normalize(
+         forward + 0.8 * vPos.x * right + 0.8 * vPos.y * up
+      );
+
+      // Room + pillars
+      vec3 boxSize    = vec3(10., 3., 160.);
+      vec3 pillarSize = vec3(0.9, boxSize.y, 1.0);
+
+      bool hitPillar = false;
+      vec3 pillarMin = vec3(0.0);
+
+      vec3 t0 = (-boxSize - rayOrigin) / rayDir;
+      vec3 t1 = ( boxSize - rayOrigin) / rayDir;
+
+      vec3 tMin = min(t0, t1);
+      vec3 tMax = max(t0, t1);
+
+      float tNear = max(max(tMin.x, tMin.y), tMin.z);
+      float tFar  = min(min(tMax.x, tMax.y), tMax.z);
+
+      if (tFar > 0.0 && tFar >= tNear) {
+         float tHit = tFar;
+
+         for (int row = 0; row < 24; row += 2) {
+            for (int col = 0; col < 4; col++) {
+               vec3 pillarCenter = vec3(
+                  (float(col) - 1.5) * 6.0,
+                  0.0,
+                  -4.0 - float(row) * 6.0
+               );
+
+               vec3 p0 = (pillarCenter - pillarSize - rayOrigin) / rayDir;
+               vec3 p1 = (pillarCenter + pillarSize - rayOrigin) / rayDir;
+               vec3 pMin = min(p0, p1);
+               vec3 pMax = max(p0, p1);
+
+               float pillarNear = max(max(pMin.x, pMin.y), pMin.z);
+               float pillarFar  = min(min(pMax.x, pMax.y), pMax.z);
+
+               if (pillarFar > 0.0 && pillarFar >= pillarNear && pillarNear < tHit) {
+                  tHit = pillarNear;
+                  pillarMin = pMin;
+                  hitPillar = true;
+               }
+            }
+         }
+
+         vec3 hit = rayOrigin + tHit * rayDir;
+
+         // Which face: whichever axis contributed the hit t
+         vec3 normal = vec3(0.0);
+         if (!hitPillar) {
+            if      (tFar == tMax.x) normal.x = -sign(rayDir.x);
+            else if (tFar == tMax.y) normal.y = -sign(rayDir.y);
+            else                     normal.z = -sign(rayDir.z);
+         } else {
+            if      (tHit == pillarMin.x) normal.x = -sign(rayDir.x);
+            else if (tHit == pillarMin.y) normal.y = -sign(rayDir.y);
+            else                          normal.z = -sign(rayDir.z);
+         }
+
+         #if DEBUG == 1
+         fragColor = vec4(normal * 0.5 + 0.5, 1.0);
+         return;
+         #endif
+
+         bool isCeil  = normal.y < -0.5;
+         bool isFloor = normal.y >  0.5;
+
+         // ---------- 1. Ceiling light panels (analytic grid, period 4, 2x2 panels) ----------
+         // panel occupies local [0,2) x [0,2), center at local (2,2)
+
+
+         vec2 l = hit.xz - 4.0 * floor(hit.xz / 4.);
+         vec2 dc = abs(l - 1.0);
+         float panelMask = smoothstep(0.96,.9, max(dc.x,dc.y));
+         
+
+         // ---------- 2. Lighting from the nearest 3x3 panels ----------
+         vec2 base = floor(hit.xz / 4.0); // current index
+         vec3 diffuseSum = vec3(0.0);
+         float specSum = 0.0;
+         float glow = 0.0;
+
+         for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+               vec2 c = (base + vec2(float(i), float(j))) * 4.0 + 2.0;  // panel center (x,z)
+               vec3 lp = vec3(c.x, boxSize.y - 0.1, c.y);
+
+               vec3 L = lp - hit; // vector from point to light
+               float d2 = dot(L, L);
+               vec3 Ln = L * inversesqrt(d2);
+               float atten = 1.0 / (1.0 + ATTEN_K * d2);
+
+               if (!isCeil) {
+                  float ndl = max(0.0, dot(normal, Ln));
+                  diffuseSum += LIGHT_COL * ndl * atten;
+
+                  if (isFloor) {
+                     vec3 R = 2.0 * dot(normal, Ln) * normal - Ln;
+                     specSum += pow(max(0.0, dot(-rayDir, R)), 10.0) * atten;
+                  }
+               } else {
+                  // ceiling tiles are lit by "glow" around each panel
+                  vec2 dq = hit.xz - c;
+                  glow += exp(-dot(dq, dq) * 0.25);
+               }
+            }
+         }
+
+         #if DEBUG == 2
+         fragColor = vec4(pow(diffuseSum * 0.5, vec3(1.0 / 2.2)), 1.0);
+         return;
+         #endif
+
+         // ---------- 3. Materials ----------
+         vec3 albedo;
+
+         if (isCeil) {
+            albedo = vec3(0.75, 0.74, 0.66);
+            // T-bar grid every 1 unit
+            vec2 f = fract(hit.xz);
+            vec2 dEdge = min(f, 1.0 - f);
+            float line = 1.0 - smoothstep(0.015, 0.04, min(dEdge.x, dEdge.y));
+            albedo = mix(albedo, albedo * 0.45, line);
+         }
+         else if (isFloor) {
+            albedo = vec3(0.50, 0.45, 0.28);
+            // carpet grain + low-frequency stains
+            albedo *= 0.88 + 0.24 * hash(floor(hit.xz * 30.0));
+            albedo *= 0.85 + 0.30 * vnoise(hit.xz * 0.6);
+         }
+         else {
+            albedo = vec3(0.78, 0.72, 0.40);
+            // wallpaper: vertical stripes + grime
+            float u = abs(normal.x) > 0.5 ? hit.z : hit.x;
+            albedo *= 0.94 + 0.06 * step(0.5, fract(u * 1.2));
+            albedo *= 0.85 + 0.30 * vnoise(vec2(u * 0.8, hit.y * 0.8));
+            if (abs(normal.z) > 0.5) albedo *= 0.92;   // z-facing walls slightly darker
+         }
+
+         // ---------- 4. Corner ambient occlusion (room box only) ----------
+         float ao = 1.0;
+         if (!hitPillar) {
+            vec3 dB = boxSize - abs(hit);   // distance to the nearest plane on each axis
+            float dmin;
+            if      (abs(normal.x) > 0.5) dmin = min(dB.y, dB.z);
+            else if (abs(normal.y) > 0.5) dmin = min(dB.x, dB.z);
+            else                          dmin = min(dB.x, dB.y);
+            ao = 1.0 - 0.45 * exp(-dmin * 1.2);
+         }
+
+         // ---------- 5. Combine ----------
+         vec3 color;
+         if (isCeil) {
+            color = albedo * (AMBIENT + 1.1 * glow * LIGHT_COL) * ao;
+            vec3 emissive = LIGHT_COL * PANEL_EMIT;
+            color = mix(color, emissive, panelMask);
+         } else {
+            color = albedo * (AMBIENT + diffuseSum) * ao
+                  + specSum * 0.25 * LIGHT_COL;
+         }
+
+         // ---------- 6. Fog, tone mapping, gamma ----------
+         float fogAmt = exp(-tHit * FOG_DENSITY);
+         color = mix(FOG_COL, color, fogAmt);
+
+         color = color / (1.0 + color);          // Reinhard
+         color = pow(color, vec3(1.0 / 2.2));    // gamma
+
+         fragColor = vec4(color, 1.0);
+      }
+   }`;
+
+   let startTime = Date.now() / 1000;
+
+   this.update = () => {
+      setUniform('1f', 'uTime', Date.now() / 1000 - startTime);
+   }
+
+}
+
+gl_start(canvas, new Scene());
+</script>
