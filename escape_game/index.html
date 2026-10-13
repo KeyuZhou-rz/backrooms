@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <link rel="icon" href="data:," />
+      <title>出口断电 / Backrooms Escape</title>
+      <link rel="stylesheet" href="style.css" />
+   </head>
+   <body>
+      <canvas id="scene" aria-label="第一人称后室逃生游戏"></canvas>
+      <div id="vignette"></div>
+      <header>
+         <div>
+            <span class="eyebrow">FACILITY 037 / SINGLE PLAYER</span>
+            <h1>出口<span>断电</span></h1>
+         </div>
+         <div id="objective">
+            <small>当前任务 / 01</small>
+            <p>前往泵房，恢复出口供电</p>
+            <span id="area">黄色柱廊</span>
+         </div>
+      </header>
+      <div id="crosshair">+</div>
+      <div id="prompt"></div>
+      <div id="toast" role="status"></div>
+      <aside id="map-panel">
+         <div class="panel-label">设施线路 <span>M 收起</span></div>
+         <canvas id="map" width="240" height="180" aria-label="四个区域和五条连接通道的地图"></canvas>
+         <p>● 你的位置　出口在黄色柱廊西墙</p>
+      </aside>
+      <aside id="radio">
+         <div class="panel-label">
+            <span class="live-dot"></span> 搜寻者 / 实时频道 <button id="chat-toggle">对话 [T]</button>
+         </div>
+         <p id="position" aria-live="polite">当前位置：储物间北侧 · 搜查</p>
+         <div id="ai-status">等待连接</div>
+         <div id="messages" role="log" aria-label="怪物与玩家的对话"></div>
+         <form id="chat-form" hidden>
+            <label for="message">输入诱导信息 · 对话期间游戏继续</label>
+            <div>
+               <input id="message" maxlength="240" autocomplete="off" placeholder="例如：我在泳池" /><button
+                  type="submit"
+               >
+                  发送
+               </button>
+            </div>
+         </form>
+      </aside>
+      <footer>
+         <span>WASD 移动　鼠标观察　Shift 快跑　E 操作　T 对话　Esc 暂停</span
+         ><button id="restart">重新开始</button>
+      </footer>
+      <div id="overlay">
+         <section id="card">
+            <div class="eyebrow" id="card-kicker">MAINTENANCE RECORD / 037</div>
+            <h2 id="card-title">灯还亮着。<br />出口没有电。</h2>
+            <p id="card-copy">
+               去泵房启动电源，再回到黄色柱廊的出口。<br />搜寻者会播报真实位置。听见启动声后，它会找过来。
+            </p>
+            <div id="briefing">
+               <span>01 柱廊 ↔ 02 储物间 ↔ 04 泵房</span><span>01 柱廊 ↔ 03 泳池 ↔ 04 泵房</span
+               ><span>02 储物间 ↔ 03 泳池 / 维修通道</span>
+               <p>利用环路绕行。关门争取时间。快跑会发出声音。<br />沿池边走道通行；无需聊天，也能逃出去。</p>
+            </div>
+            <button id="begin">进入设施 <span>→</span></button
+            ><small id="card-note">点击进入鼠标控制 · Esc 可随时暂停</small>
+         </section>
+      </div>
+      <script type="module" src="game.js"></script>
+   </body>
+</html>
