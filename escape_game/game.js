@@ -22,7 +22,7 @@ let frameAverage = 16.7;
 function say(text, player = false) {
    const p = document.createElement('p'),
       label = document.createElement('small');
-   label.textContent = player ? '你 / 未经证实的信息' : '搜寻者 / 对话';
+   label.textContent = player ? 'YOU / UNVERIFIED MESSAGE' : 'SEEKER / DIALOGUE';
    p.append(label, document.createTextNode(text));
    if (player) p.className = 'player';
    $('messages').append(p);
@@ -50,15 +50,15 @@ function showCard(kind) {
       : lost
         ? 'FACILITY 037 / SIGNAL LOST'
         : 'FACILITY 037 / PAUSED';
-   $('card-title').textContent = won ? '你走出了设施。' : lost ? '它找到了你。' : '暂时停在这里。';
+   $('card-title').textContent = won ? 'You escaped the facility.' : lost ? 'It found you.' : 'Take a moment.';
    $('card-copy').textContent = won
-      ? `用时 ${Math.floor(game.time)} 秒。出口供电已恢复。`
+      ? `Escaped in ${Math.floor(game.time)} seconds. Exit power restored.`
       : lost
-        ? '绕开视线，关门，再从另一条连接廊离开。'
-        : '游戏已暂停。返回后继续前往泵房并逃生。';
+        ? 'Break its line of sight, close a door, and take another corridor.'
+        : 'Paused. Restore power in the Pump Room, then return to the exit.';
    $('briefing').hidden = true;
-   $('begin').textContent = ended ? '重新开始 →' : '继续探索 →';
-   $('card-note').textContent = 'WASD 移动 · Shift 快跑 · E 操作 · T 对话';
+   $('begin').textContent = ended ? 'Restart →' : 'Resume →';
+   $('card-note').textContent = 'WASD Move · Shift Run · E Interact · T Chat';
 }
 async function capture() {
    if (game.result) return;
@@ -70,7 +70,7 @@ async function capture() {
       await canvas.requestPointerLock();
    } catch (error) {
       if (testing) canvas.dataset.pointerError = error.name + ': ' + error.message;
-      toast('鼠标锁定不可用：按住画面拖动观察，WASD 移动');
+      toast('Mouse capture unavailable: drag the scene to look; use WASD to move.');
    }
 }
 function restart() {
@@ -125,8 +125,8 @@ function drawMap() {
       ctx.strokeRect(x - 32, z - 18, 64, 36);
       ctx.fillStyle = regions[id].color;
       ctx.textAlign = 'center';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(regions[id].name, x, z + 4);
+      ctx.font = '10px sans-serif';
+      ctx.fillText(regions[id].code.split(' / ')[1], x, z + 4);
    }
    const loc = locate(game.world, game.player);
    let point = points[loc.region];
@@ -145,16 +145,16 @@ function drawMap() {
    ctx.font = '9px sans-serif';
    ctx.fillStyle = game.powered ? '#82d3a3' : '#aaa48a';
    ctx.textAlign = 'left';
-   ctx.fillText(game.powered ? '出口已通电' : '出口 / 断电', 14, 69);
-   ctx.fillText('供电开关', 166, 166);
+   ctx.fillText(game.powered ? 'Exit powered' : 'Exit / offline', 14, 69);
+   ctx.fillText('Power switch', 166, 166);
 }
 function hud() {
    $('position').textContent = game.broadcast();
    $('area').textContent = locate(game.world, game.player).text;
-   $('objective').querySelector('small').textContent = game.powered ? '当前任务 / 02' : '当前任务 / 01';
+   $('objective').querySelector('small').textContent = game.powered ? 'OBJECTIVE / 02' : 'OBJECTIVE / 01';
    $('objective').querySelector('p').textContent = game.powered
-      ? '返回黄色柱廊，操作出口逃生'
-      : '前往泵房，恢复出口供电';
+      ? 'Return to the Colonnade. Open the exit.'
+      : 'Reach the Pump Room. Restore exit power.';
    const item = game.interaction();
    $('prompt').textContent = active && !chatting && item ? `[E] ${item.label}` : '';
    document.body.classList.toggle('danger', game.monster.mode === 'chase' && !game.result);
@@ -327,7 +327,7 @@ try {
    director = new Director(
       game,
       (text, source) => {
-         $('ai-status').textContent = `${source === 'llm' ? 'LLM 控制' : '基础行为'} / ${text}`;
+         $('ai-status').textContent = `${source === 'llm' ? 'LLM control' : 'Basic behavior'} / ${text}`;
       },
       say
    );
@@ -335,7 +335,7 @@ try {
    hud();
    requestAnimationFrame(frame);
 } catch (error) {
-   $('card-title').textContent = '画面未能启动';
+   $('card-title').textContent = 'Unable to start rendering';
    $('card-copy').textContent = error.message;
    $('begin').hidden = true;
    $('briefing').hidden = true;

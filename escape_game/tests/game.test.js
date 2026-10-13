@@ -87,7 +87,7 @@ test('power and return route wins with a live searching/chasing monster and no t
    assert.equal(g.result, null);
    g.interact();
    assert.equal(g.powered, true);
-   assert.ok(g.sounds.some((s) => s.label === '泵房启动'));
+   assert.ok(g.sounds.some((s) => s.label === 'Pump startup'));
    for (const point of [
       [35, 31],
       [35, 11],
@@ -139,9 +139,9 @@ test('monster opens a shut door with a delay and crosses without stepping throug
 });
 test('sound has a finite path range, pump response has a head start, invalid AI tools do nothing', () => {
    const g = new Game();
-   g.noise(g.player, 2, '快速脚步');
+   g.noise(g.player, 2, 'Running footsteps');
    assert.equal(g.sounds.length, 0);
-   g.noise({ x: 37, z: 41 }, 120, '泵房启动');
+   g.noise({ x: 37, z: 41 }, 120, 'Pump startup');
    assert.equal(g.sounds.length, 1);
    assert.equal(g.monster.reactAt, 4);
    assert.equal(g.applyDecision({ action: 'moveToRegion', region: 'outside' }), false);
@@ -159,7 +159,7 @@ test('broadcast is derived from actual location; reset restores all round state'
    g.powered = true;
    g.world.doors[0].open = false;
    g.result = 'lost';
-   g.message('我在泳池');
+   g.message('I\'m at the pool');
    g.reset();
    assert.equal(g.powered, false);
    assert.equal(g.result, null);
@@ -185,7 +185,7 @@ test('an old AI reply cannot affect a new round', async () => {
       ok: true,
       json: async () => ({
          model: 'test',
-         decision: { action: 'moveToRegion', region: 'yellow', line: '旧回答' }
+         decision: { action: 'moveToRegion', region: 'yellow', line: 'Old reply' }
       })
    });
    await pending;

@@ -44,7 +44,7 @@ test('server sends non-thinking tool request and returns a validated real-tool-s
                            {
                               function: {
                                  name: 'moveToRegion',
-                                 arguments: JSON.stringify({ region: 'pool', line: '检查泳池。' })
+                                 arguments: JSON.stringify({ region: 'pool', line: 'Checking the pool.' })
                               }
                            }
                         ]
@@ -73,7 +73,7 @@ test('upstream failure returns a short fallback status without credential leakag
       async (url) => {
          const response = await post(url);
          assert.equal(response.status, 502);
-         assert.deepEqual(await response.json(), { error: 'AI 暂时离线 · 基础搜索' });
+         assert.deepEqual(await response.json(), { error: 'AI temporarily offline · Basic search' });
       }
    );
 });

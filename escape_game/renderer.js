@@ -112,7 +112,7 @@ export class Renderer {
    constructor(canvas, world, sources) {
       this.canvas = canvas;
       const gl = (this.gl = canvas.getContext('webgl2', { antialias: false, alpha: false }));
-      if (!gl) throw new Error('浏览器不支持 WebGL2');
+      if (!gl) throw new Error('This browser does not support WebGL2');
       const program = (fragment) => {
          const p = gl.createProgram();
          for (const [type, source] of [
@@ -193,13 +193,13 @@ export class Renderer {
       canvas.height = 1024;
       const ctx = canvas.getContext('2d');
       const labels = [
-         '02  储物间 / STORAGE',
-         '03  泳池 / POOL',
-         '04  泵房 / PUMP',
-         '01  柱廊 / COLONNADE',
-         'EXIT / 出口 · 需供电',
-         'POWER / 电源 [E]',
-         'DEEP WATER / 请绕行',
+         '02 / STORAGE',
+         '03 / POOL',
+         '04 / PUMP ROOM',
+         '01 / COLONNADE',
+         'EXIT / POWER REQUIRED',
+         'POWER / RESTORE [E]',
+         'DEEP WATER / USE WALKWAY',
          'FACILITY 037'
       ];
       labels.forEach((text, i) => {
@@ -322,7 +322,7 @@ export class Renderer {
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.reflection, 0);
       gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depth);
       if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
-         throw new Error('水面反射缓冲创建失败');
+         throw new Error('Unable to create water reflection buffer');
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
    }
    use(program, game, pitch, reflect = false) {

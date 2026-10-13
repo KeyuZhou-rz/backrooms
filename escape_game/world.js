@@ -1,20 +1,20 @@
 export const regions = {
    yellow: {
-      name: '黄色柱廊',
+      name: 'Yellow Colonnade',
       code: '01 / COLONNADE',
       cells: [0, 8, 0, 7],
       center: [9, 9],
       color: '#c6b967'
    },
    storage: {
-      name: '储物间',
+      name: 'Storage',
       code: '02 / STORAGE',
       cells: [13, 19, 0, 6],
       center: [33, 11],
       color: '#b39070'
    },
-   pool: { name: '泳池', code: '03 / POOL', cells: [0, 8, 13, 22], center: [3, 29], color: '#72bab3' },
-   pump: { name: '泵房', code: '04 / PUMP', cells: [14, 19, 15, 21], center: [37, 33], color: '#99a9a5' }
+   pool: { name: 'Pool', code: '03 / POOL', cells: [0, 8, 13, 22], center: [3, 29], color: '#72bab3' },
+   pump: { name: 'Pump Room', code: '04 / PUMP', cells: [14, 19, 15, 21], center: [37, 33], color: '#99a9a5' }
 };
 export const links = [
    { id: 'ys', a: 'yellow', b: 'storage', runs: [[9, 12, 3, 3]], door: [11, 3], axis: 'x' },
@@ -35,8 +35,8 @@ export const links = [
    { id: 'sm', a: 'storage', b: 'pump', runs: [[17, 17, 7, 14]], door: [17, 11], axis: 'z' }
 ];
 export const spawn = { x: 7, z: 5, yaw: Math.PI };
-export const exit = { x: 1.1, z: 7, name: '出口' };
-export const powerSwitch = { x: 38.6, z: 41, name: '泵房电源' };
+export const exit = { x: 1.1, z: 7, name: 'Exit' };
+export const powerSwitch = { x: 38.6, z: 41, name: 'Pump power' };
 export const basin = { x: 4, z: 30, w: 10, d: 12, h: 0.12, material: 3, pit: true };
 const key = (x, z) => `${x},${z}`;
 export const cellKey = (p) => key(Math.floor(p.x / 2), Math.floor(p.z / 2));
@@ -131,11 +131,11 @@ export function visible(world, a, b, ignoreDoor = null) {
 }
 export function locate(world, p) {
    const cell = world.cells.get(cellKey(p));
-   if (!cell) return { text: '边界', region: null };
+   if (!cell) return { text: 'Boundary', region: null };
    if (cell.link) {
       const link = links.find((link) => link.id === cell.link);
       return {
-         text: `${regions[link.a].name} ↔ ${regions[link.b].name}连接廊`,
+         text: `${regions[link.a].name} ↔ ${regions[link.b].name} corridor`,
          link: link.id,
          region: null
       };
@@ -143,8 +143,10 @@ export function locate(world, p) {
    const room = regions[cell.region],
       [cx, cz] = room.center;
    const side =
-      Math.abs(p.x - cx) > Math.abs(p.z - cz) ? (p.x < cx ? '西侧' : '东侧') : p.z < cz ? '北侧' : '南侧';
-   return { text: `${room.name}${side}`, region: cell.region };
+      Math.abs(p.x - cx) > Math.abs(p.z - cz)
+         ? (p.x < cx ? 'west side' : 'east side')
+         : p.z < cz ? 'north side' : 'south side';
+   return { text: `${room.name} · ${side}`, region: cell.region };
 }
 export function findPath(world, start, goal, openDoors = false) {
    const from = cellKey(start),

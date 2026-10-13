@@ -79,7 +79,7 @@ export class Game {
       this.sounds = this.sounds.slice(-5);
       this.event('sound', { sound });
       if (this.monster.mode !== 'chase') {
-         this.monster.reactAt = this.time + (label === '泵房启动' ? 4 : 0.6);
+         this.monster.reactAt = this.time + (label === 'Pump startup' ? 4 : 0.6);
          this.monster.heard = sound;
       }
    }
@@ -184,7 +184,7 @@ export class Game {
          );
          if (input.sprint && this.time > this.footTime) {
             this.footTime = this.time + 3;
-            this.noise(p, 15, '快速脚步');
+            this.noise(p, 15, 'Running footsteps');
          }
       }
       if (this.time >= this.sightTime) {
@@ -247,11 +247,14 @@ export class Game {
       const candidates = this.world.doors.map((door) => ({
          type: 'door',
          target: door,
-         label: door.open ? '关闭连接门' : '打开连接门'
+         label: door.open ? 'Close corridor door' : 'Open corridor door'
       }));
       candidates.push(
-         { type: 'power', target: powerSwitch, label: this.powered ? '电源已启动' : '恢复出口供电' },
-         { type: 'exit', target: exit, label: this.powered ? '打开出口 · 逃生' : '出口断电 · 前往泵房' }
+         { type: 'power', target: powerSwitch, label: this.powered ? 'Power is on' : 'Restore exit power' },
+         {
+            type: 'exit', target: exit,
+            label: this.powered ? 'Open exit · Escape' : 'Exit offline · Reach the Pump Room'
+         }
       );
       return candidates
          .filter(
@@ -273,13 +276,14 @@ export class Game {
             actor.x < box.x + box.w + 0.36 &&
             actor.z > box.z - 0.36 &&
             actor.z < box.z + box.d + 0.36;
-         if (door.open && (inDoor(this.player) || inDoor(this.monster))) return '门口有人，无法关闭';
+         if (door.open && (inDoor(this.player) || inDoor(this.monster)))
+            return 'Doorway occupied. Cannot close door.';
          door.open = !door.open;
-         this.noise(door, 24, door.open ? '开门' : '关门');
+         this.noise(door, 24, door.open ? 'Door opened' : 'Door closed');
       } else if (item.type === 'power' && !this.powered) {
          this.powered = true;
-         this.noise(powerSwitch, 120, '泵房启动');
-         return '出口已通电。返回黄色柱廊。';
+         this.noise(powerSwitch, 120, 'Pump startup');
+         return 'Exit powered. Return to the Yellow Colonnade.';
       } else if (item.type === 'exit' && this.powered) {
          this.result = 'won';
          this.event('escaped');
@@ -315,8 +319,11 @@ export class Game {
    broadcast() {
       const m = this.monster,
          location = locate(this.world, m);
-      const states = { chase: '追逐', search: '搜查', travel: '移动', investigate: '调查', guard: '截路' };
+      const states = {
+         chase: 'Chasing', search: 'Searching', travel: 'Moving',
+         investigate: 'Investigating', guard: 'Guarding exit'
+      };
       const route = location.link && m.targetRegion ? ` → ${regions[m.targetRegion].name}` : '';
-      return `当前位置：${location.text}${route} · ${m.doorWait > 0 ? '正在开门' : states[m.mode]}`;
+      return `Location: ${location.text}${route} · ${m.doorWait > 0 ? 'Opening door' : states[m.mode]}`;
    }
 }

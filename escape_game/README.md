@@ -1,6 +1,7 @@
-# 出口断电 / Backrooms Escape
+# Exit Offline / Backrooms Escape
 
-单人桌面第一人称原型。原生 JavaScript、WebGL2、GLSL，Node 后端，无第三方运行依赖。
+单人桌面第一人称原型。游戏界面、场景标识、位置播报和怪物对白使用英文；本文与实现说明使用中文。
+原生 JavaScript、WebGL2、GLSL，Node 后端，无第三方运行依赖。
 
 ## 启动
 
@@ -17,14 +18,14 @@ node /Users/rzzz/Desktop/Workspace/Projects/backrooms/escape_game/server.js
 
 | 操作 | 功能 |
 | --- | --- |
-| 点击“进入设施”或画面 | 请求 Pointer Lock |
+| 点击 “Enter facility” 或画面 | 请求 Pointer Lock |
 | WASD / 鼠标 | 移动 / 观察 |
 | Shift | 快跑，会产生可被附近怪物听见的脚步 |
 | E | 操作附近的门、电源开关或出口 |
 | T | 打开 / 关闭对话；输入框中 Esc 关闭对话 |
 | Esc | 释放鼠标并暂停 |
 | M | 收起 / 显示线路图 |
-| 重新开始 | 重置本局，包括门、聊天和待处理 AI 请求 |
+| Restart | 重置本局，包括门、聊天和待处理 AI 请求 |
 
 浏览器拒绝 Pointer Lock 时，可以**按住画面拖动观察**。对话期间游戏继续，键盘输入不会同时移动玩家。
 切换标签页或窗口失去焦点会暂停，重新进入需要点击继续。
@@ -68,7 +69,8 @@ DEEPSEEK_API_KEY=你的密钥
 游戏仅向模型发送虚构世界的观察、行动和少量对话，不发送本地文件内容。
 
 `AI_DISABLED=1 node server.js` 可运行纯基础搜索模式。连接失败、超时、错误工具或冷却期间，实时移动和胜负逻辑继续工作。
-右下角明确标出“LLM 控制”或“基础行为”，配置成功不等于模型决策已执行。
+右下角明确标出 “LLM control” 或 “Basic behavior”，配置成功不等于模型决策已执行。
+模型提示词要求始终使用英文对白，即使玩家输入中文。玩家输入本身按原文保留。
 
 AI 只选择 `moveToRegion`、`searchRegion`、`investigateSound`、`guardExit` 四种工具，返回值会经过后端校验和游戏可达性检查。
 追逐优先于模型建议。模型不会接收玩家实时位置；只会接收最近目击和沿实际通路传到怪物处的声音。
@@ -79,6 +81,8 @@ AI 只选择 `moveToRegion`、`searchRegion`、`investigateSound`、`guardExit` 
 工具调用协议参考 [DeepSeek 官方文档](https://api-docs.deepseek.com/guides/tool_calls/)。
 
 ## 实现与检查
+
+各部分的数据结构、算法、渲染步骤与代码入口见 [实现说明](IMPLEMENTATION.md)。
 
 `world.js` 描述区域、通道、墙、门和遮挡，渲染、碰撞、视线及网格寻路均使用这份数据。
 `simulation.js` 处理实时玩法，`ai.js` 管理事件请求和旧局隔离，`server.js` 负责静态服务和受限工具调用。

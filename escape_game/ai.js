@@ -18,16 +18,16 @@ export class Director {
       this.queued = false;
       this.nextCall = 0;
       this.dialogue = [];
-      this.report('等待连接', 'fallback');
+      this.report('Waiting for connection', 'fallback');
    }
    async status() {
       try {
          const data = await (await fetch('/api/status')).json();
          this.enabled = data.configured;
-         this.report(data.configured ? `${data.model} · 等待决策` : '未配置 · 基础搜索', 'fallback');
+         this.report(data.configured ? `${data.model} · Awaiting decision` : 'Not configured · Basic search', 'fallback');
       } catch {
          this.enabled = false;
-         this.report('离线 · 基础搜索', 'fallback');
+         this.report('Offline · Basic search', 'fallback');
       }
    }
    tick() {
@@ -52,7 +52,7 @@ export class Director {
          revision = game.revision;
       const controller = new AbortController();
       this.pending = controller;
-      this.report('请求中 · 继续已有行动', game.control);
+      this.report('Requesting · Continuing current action', game.control);
       this.nextCall = performance.now() + 10000;
       const timeout = setTimeout(() => controller.abort(), 16000);
       try {
@@ -65,9 +65,9 @@ export class Director {
          });
          const data = await response.json();
          if (generation !== this.generation || game.result) return;
-         if (!response.ok) throw new Error(data.error || 'AI 离线 · 基础搜索');
+         if (!response.ok) throw new Error(data.error || 'AI Offline · Basic search');
          const applied = revision === game.revision && game.applyDecision(data.decision);
-         this.report(applied ? `${data.model} · 决策已执行` : `${data.model} · 新观察优先`, game.control);
+         this.report(applied ? `${data.model} · Decision applied` : `${data.model} · New observations take priority`, game.control);
          if (applied && data.decision.line) {
             this.say(data.decision.line);
             this.dialogue.push({ speaker: 'monster', text: data.decision.line });
@@ -76,7 +76,7 @@ export class Director {
       } catch (error) {
          if (generation !== this.generation || game.result) return;
          game.control = 'fallback';
-         this.report(error.name === 'AbortError' ? '请求超时 · 基础搜索' : error.message, 'fallback');
+         this.report(error.name === 'AbortError' ? 'Request timed out · Basic search' : error.message, 'fallback');
          this.nextCall = performance.now() + 20000;
       } finally {
          clearTimeout(timeout);

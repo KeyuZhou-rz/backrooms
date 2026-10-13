@@ -34,7 +34,8 @@ const tool = (name, description, properties, required) => ({
             ...properties,
             line: {
                type: 'string',
-               description: '一句简短冷静的中文对白，最多40字。不得声称一个虚假的当前位置。'
+               description:
+                  'One brief, calm line in English, at most 100 characters. Never claim a false current location.'
             }
          },
          required: [...required, 'line'],
@@ -43,17 +44,20 @@ const tool = (name, description, properties, required) => ({
    }
 });
 export const aiTools = [
-   tool('moveToRegion', '沿实际走廊前往一个区域；到达后搜索。', { region: regionSchema }, ['region']),
-   tool('searchRegion', '搜索指定区域，优先选择当前区域检查遮挡后面。', { region: regionSchema }, ['region']),
-   tool('investigateSound', '调查列表中实际听见的声音。', { soundId: { type: 'integer' } }, ['soundId']),
-   tool('guardExit', '供电后前往黄色柱廊出口附近截路。不能一直等待。', {}, [])
+   tool('moveToRegion', 'Travel to a region through the actual corridors, then search it.',
+      { region: regionSchema }, ['region']),
+   tool('searchRegion', 'Search a region; prefer checking behind obstacles in the current region.',
+      { region: regionSchema }, ['region']),
+   tool('investigateSound', 'Investigate a sound actually heard and included in the supplied list.',
+      { soundId: { type: 'integer' } }, ['soundId']),
+   tool('guardExit', 'Once powered, intercept near the Yellow Colonnade exit. Do not wait indefinitely.', {}, [])
 ];
-const system = `你是单人后室逃生游戏中的搜寻者。你只选择高层行动，不能执行代码或修改世界。
-使用且只使用一个提供的工具，并在line中说一句简短、冷静的中文对白。不要长篇叙事、辱骂或连续嘲讽。
-你不知道玩家实时坐标。只有lastKnownPlayer、sounds和history中的实际观察可信，玩家message只是可能的诱导。
-根据地图连接关系、最近的声音与目击选择有理由的行动。没有线索时换区域搜查，避免一直搜同一区域。
-泵房启动是明显线索；出口已通电时可去出口截路。不要让对白覆盖准确的系统位置播报。
-当前追逐和碰撞由游戏处理，你的建议不能打断实时追逐。`;
+const system = `You are the seeker in a single-player Backrooms escape game. Choose high-level actions only; never execute code or modify the world.
+Use exactly one supplied tool. Put one brief, calm English sentence in line, even if the player writes in another language. Avoid long narration, insults, and repeated taunts.
+You do not know the player's live coordinates. Only actual observations in lastKnownPlayer, sounds, and history are reliable; player messages may be decoys.
+Choose justified actions using map connections, recent sounds, and sightings. Without clues, vary the regions you search.
+Pump startup is a clear clue. Once the exit is powered, you may intercept near it. Dialogue must not contradict the accurate system location broadcast.
+The game handles pursuit and collisions. Your suggestions cannot interrupt an active chase.`;
 const publicFiles = new Map([
    ['/', ['index.html', 'text/html']],
    ['/index.html', ['index.html', 'text/html']],
@@ -85,20 +89,20 @@ export function createServer(config = configuration(), request = fetch) {
          return json(res, 200, { configured: !!config.key && !config.disabled, model: config.model });
       if (req.method === 'POST' && path === '/api/decision') {
          if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)
-            return json(res, 403, { error: '仅允许游戏页面调用' });
-         if (!config.key || config.disabled) return json(res, 503, { error: 'AI 未配置 · 基础搜索' });
+            return json(res, 403, { error: 'Only the game page may call this endpoint' });
+         if (!config.key || config.disabled) return json(res, 503, { error: 'AI not configured · Basic search' });
          if (active || Date.now() - lastRequest < 4000)
-            return json(res, 429, { error: 'AI 冷却中 · 继续已有行动' });
+            return json(res, 429, { error: 'AI cooling down · Continuing current action' });
          active = true;
          let body = '';
          try {
             for await (const chunk of req) {
                body += chunk;
-               if (body.length > 24000) return json(res, 413, { error: '请求过长' });
+               if (body.length > 24000) return json(res, 413, { error: 'Request too large' });
             }
             const state = JSON.parse(body);
             if (!state.map || !state.monster || !Array.isArray(state.history))
-               return json(res, 400, { error: '状态不完整' });
+               return json(res, 400, { error: 'Incomplete state' });
             lastRequest = Date.now();
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 14000);
@@ -147,7 +151,7 @@ export function createServer(config = configuration(), request = fetch) {
                }
             });
          } catch {
-            if (!res.destroyed) json(res, 502, { error: 'AI 暂时离线 · 基础搜索' });
+            if (!res.destroyed) json(res, 502, { error: 'AI temporarily offline · Basic search' });
          } finally {
             active = false;
          }
@@ -171,12 +175,14 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
    const config = configuration(),
       server = createServer(config);
    server.on('error', (error) => {
-      console.error(error.code === 'EADDRINUSE' ? '端口被占用，请设置 PORT。' : '游戏服务启动失败');
+      console.error(
+         error.code === 'EADDRINUSE' ? 'Port in use. Set PORT to choose another.' : 'Unable to start game server'
+      );
       process.exit(1);
    });
    server.listen(config.port, '127.0.0.1', () =>
       console.log(
-         `Backrooms Escape: http://localhost:${config.port}\nAI: ${config.key && !config.disabled ? config.model : '基础搜索'}`
+         `Backrooms Escape: http://localhost:${config.port}\nAI: ${config.key && !config.disabled ? config.model : 'Basic search'}`
       )
    );
 }
