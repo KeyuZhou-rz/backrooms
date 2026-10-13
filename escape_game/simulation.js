@@ -7,6 +7,7 @@ import {
    powerSwitch,
    distance,
    move,
+   canWalk,
    visible,
    locate,
    findPath,
@@ -63,7 +64,7 @@ export class Game {
    noise(position, range, label) {
       const route = findPath(this.world, this.monster, position, true);
       if (!route.length) return;
-      let length = 0;
+      let length = distance(this.monster, route[0]);
       for (let i = 1; i < route.length; i++) length += distance(route[i - 1], route[i]);
       length += this.world.doors.filter((d) => !d.open && route.some((p) => distance(p, d) < 1)).length * 6;
       if (length > range) return;
@@ -154,11 +155,14 @@ export class Game {
          angle = Math.atan2(p.x - m.x, -(p.z - m.z));
       const facing = Math.cos(angle - m.yaw) > -0.15;
       if (d < 19 && (facing || d < 3.5) && visible(this.world, m, p)) {
-         if (m.mode !== 'chase') this.event('saw', { location: locate(this.world, p).text });
+         if (m.mode !== 'chase') {
+            this.event('saw', { location: locate(this.world, p).text });
+            m.path = [];
+            m.nextPlan = 0;
+         }
          m.mode = 'chase';
          m.lastSeen = this.time;
          m.lastKnown = { x: p.x, z: p.z, time: this.time, location: locate(this.world, p).text };
-         m.path = [];
          m.heard = null;
          m.reactAt = 0;
       } else if (m.mode === 'chase' && this.time - m.lastSeen > 1.6) {
@@ -194,8 +198,11 @@ export class Game {
       this.fallback();
       let target = m.path[0];
       if (m.mode === 'chase' && m.lastKnown) {
-         if (visible(this.world, m, m.lastKnown)) target = m.lastKnown;
-         else {
+         if (canWalk(this.world, m, m.lastKnown)) {
+            target = m.lastKnown;
+            m.path = [];
+            m.nextPlan = 0;
+         } else {
             if (this.time >= m.nextPlan) {
                m.path = findPath(this.world, m, m.lastKnown, true);
                m.nextPlan = this.time + 0.7;

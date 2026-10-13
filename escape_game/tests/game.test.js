@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../simulation.js';
 import { Director } from '../ai.js';
-import { regions, links, findPath, canStand, distance, move, visible, locate } from '../world.js';
+import { regions, links, findPath, canStand, canWalk, distance, move, visible, locate } from '../world.js';
 
 function walk(game, goal, sprint = true) {
    const path = findPath(game.world, game.player, goal);
@@ -118,6 +118,49 @@ test('monster sees, chases and catches, but cannot track an unseen player', () =
    for (let i = 0; i < 200 && !capture.result; i++) capture.step(0.02);
    assert.equal(capture.result, 'lost');
 });
+test('a visible player across the pool is chased around the water from either side', () => {
+   for (const [start, goal] of [
+      [{ x: 3, z: 37 }, { x: 15, z: 37 }],
+      [{ x: 15, z: 37 }, { x: 3, z: 37 }],
+      [{ x: 9, z: 29 }, { x: 9, z: 43 }],
+      [{ x: 9, z: 43 }, { x: 9, z: 29 }],
+      [{ x: 3.66, z: 36.4 }, { x: 14.3, z: 37.2 }]
+   ]) {
+      const g = new Game();
+      g.player = { ...goal, yaw: 0 };
+      Object.assign(g.monster, start, { yaw: Math.atan2(goal.x - start.x, -(goal.z - start.z)) });
+      assert.equal(visible(g.world, start, goal), true, 'water does not block sight');
+      assert.equal(canWalk(g.world, start, goal), false, 'water blocks direct movement');
+      let previous = { ...g.monster };
+      for (let i = 0; i < 1500 && !g.result; i++) {
+         g.step(0.02);
+         assert.ok(canStand(g.world, g.monster), 'monster stays on the walkway');
+         assert.ok(distance(previous, g.monster) <= 3.65 * 0.02 + 0.001, 'no teleport');
+         previous = { ...g.monster };
+      }
+      assert.equal(g.result, 'lost', `monster reaches player from ${JSON.stringify(start)}`);
+   }
+});
+test('BFS checks the passage between nodes and connects an off-center start directly', () => {
+   const world = {
+      cells: new Map([['0,0', {}], ['1,0', {}], ['2,0', {}]]),
+      solids: [{ x: 1.9, z: 0.5, w: 0.2, d: 1, h: 2 }],
+      doors: []
+   };
+   const start = { x: 1, z: 1 }, goal = { x: 5, z: 1 };
+   assert.ok(canStand(world, start) && canStand(world, { x: 3, z: 1 }));
+   assert.deepEqual(findPath(world, start, goal), [], 'free endpoints cannot cross an intervening wall');
+   world.solids = [{ x: 2.8, z: 0.8, w: 0.4, d: 0.4, h: 2 }];
+   const edgeStart = { x: 3.6, z: 1 };
+   assert.ok(canStand(world, edgeStart));
+   const path = findPath(world, edgeStart, goal);
+   assert.ok(path.length);
+   let previous = edgeStart;
+   for (const point of path) {
+      assert.ok(canWalk(world, previous, point), 'no forced return to a blocked cell center');
+      previous = point;
+   }
+});
 test('monster opens a shut door with a delay and crosses without stepping through it', () => {
    const g = new Game();
    g.player = { x: 3, z: 29, yaw: 0 };
@@ -141,6 +184,8 @@ test('sound has a finite path range, pump response has a head start, invalid AI 
    const g = new Game();
    g.noise(g.player, 2, 'Running footsteps');
    assert.equal(g.sounds.length, 0);
+   g.noise({ x: 37.7, z: 5 }, 0.5, 'Nearby sound');
+   assert.equal(g.sounds.length, 0, 'sound range includes the first segment from the actual position');
    g.noise({ x: 37, z: 41 }, 120, 'Pump startup');
    assert.equal(g.sounds.length, 1);
    assert.equal(g.monster.reactAt, 4);

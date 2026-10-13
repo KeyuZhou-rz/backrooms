@@ -116,6 +116,14 @@ export function move(world, actor, dx, dz) {
       if (canStand(world, { x: actor.x, z: actor.z + dz / steps })) actor.z += dz / steps;
    }
 }
+export function canWalk(world, a, b, ignoreDoors = false) {
+   const steps = Math.max(1, Math.ceil(distance(a, b) / 0.08));
+   for (let i = 0; i <= steps; i++) {
+      const p = { x: a.x + ((b.x - a.x) * i) / steps, z: a.z + ((b.z - a.z) * i) / steps };
+      if (!canStand(world, p, 0.28, ignoreDoors)) return false;
+   }
+   return true;
+}
 export function visible(world, a, b, ignoreDoor = null) {
    const steps = Math.ceil(distance(a, b) / 0.12);
    for (let i = 1; i < steps; i++) {
@@ -151,11 +159,13 @@ export function locate(world, p) {
 export function findPath(world, start, goal, openDoors = false) {
    const from = cellKey(start),
       to = cellKey(goal);
-   if (!world.cells.has(to) || !canStand(world, goal, 0.3, openDoors)) return [];
+   if (!world.cells.has(to) || !canStand(world, goal, 0.28, openDoors)) return [];
+   if (from === to) return canWalk(world, start, goal, openDoors) ? [goal] : [];
    const queue = [from],
       previous = new Map([[from, null]]);
    for (let i = 0; i < queue.length && !previous.has(to); i++) {
-      const [x, z] = queue[i].split(',').map(Number);
+      const [x, z] = queue[i].split(',').map(Number),
+         current = queue[i] === from ? start : center(x, z);
       for (const [dx, dz] of [
          [1, 0],
          [-1, 0],
@@ -163,8 +173,8 @@ export function findPath(world, start, goal, openDoors = false) {
          [0, -1]
       ]) {
          const next = key(x + dx, z + dz),
-            p = center(x + dx, z + dz);
-         if (!previous.has(next) && canStand(world, p, 0.3, openDoors)) {
+            p = next === to ? goal : center(x + dx, z + dz);
+         if (!previous.has(next) && canWalk(world, current, p, openDoors)) {
             previous.set(next, queue[i]);
             queue.push(next);
          }
@@ -172,8 +182,8 @@ export function findPath(world, start, goal, openDoors = false) {
    }
    if (!previous.has(to)) return [];
    const path = [goal];
-   for (let at = to; at !== from; at = previous.get(at)) path.push(center(...at.split(',').map(Number)));
-   path.push(center(...from.split(',').map(Number)));
+   for (let at = previous.get(to); at !== from; at = previous.get(at))
+      path.push(center(...at.split(',').map(Number)));
    return path.reverse();
 }
 export function regionPoints(world, id) {
