@@ -2,7 +2,16 @@ import http from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseEnv } from 'node:util';
+
+export function parseEnv(source) {
+   const values = {};
+   const entries = source.matchAll(/^[ \t]*(?:export[ \t]+)?([A-Za-z_]\w*)[ \t]*=[ \t]*("[^"]*"|'[^']*'|[^#\r\n]*)/gm);
+   for (const [, name, raw] of entries) {
+      const value = raw.trim();
+      values[name] = value.startsWith('"') || value.startsWith("'") ? value.slice(1, -1) : value;
+   }
+   return values;
+}
 
 const root = dirname(fileURLToPath(import.meta.url));
 const vrEnv = '/Users/rzzz/Desktop/Workspace/Affair/NYU/26Fall/VR/Keyu-VR-2026/.env';

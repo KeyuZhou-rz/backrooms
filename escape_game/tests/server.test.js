@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer } from '../server.js';
+import { createServer, parseEnv, configuration } from '../server.js';
 import { Game } from '../simulation.js';
 
 const config = {
@@ -9,6 +9,26 @@ const config = {
    key: 'test-only',
    disabled: false
 };
+test('Node 18 configuration handles blank values, quotes, comments and process overrides', () => {
+   assert.deepEqual(parseEnv(`
+# Configuration
+DEEPSEEK_API_KEY=
+OPENAI_API_KEY="example=key#suffix" # comment
+AI_BASE_URL='https://api.deepseek.com'
+export AI_MODEL=deepseek-flash # comment
+PORT=3037
+PORT=3038
+`), {
+      DEEPSEEK_API_KEY: '',
+      OPENAI_API_KEY: 'example=key#suffix',
+      AI_BASE_URL: 'https://api.deepseek.com',
+      AI_MODEL: 'deepseek-flash',
+      PORT: '3038'
+   });
+   const settings = configuration({ DEEPSEEK_API_KEY: 'process-only', PORT: '3041' });
+   assert.equal(settings.key, 'process-only');
+   assert.equal(settings.port, 3041);
+});
 async function withServer(settings, upstream, run) {
    const server = createServer(settings, upstream);
    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

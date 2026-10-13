@@ -5,7 +5,7 @@
 
 ## 启动
 
-需要 Node.js **20.12 或更新版本**。在任意目录运行一条命令：
+需要 Node.js **18.20.8 或更新版本**。在任意目录运行一条命令：
 
 ```sh
 node /Users/rzzz/Desktop/Workspace/Projects/backrooms/escape_game/server.js
