@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" role="img" aria-labelledby="title desc">
+  <title id="title">An arch opening and the interval through a thick wall</title>
+  <desc id="desc">The front view shows two straight sides joined by a semicircle. A top view below the spring height shows one ray passing through the opening and another hitting its right inner wall.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker>
+  </defs>
+  <style>
+    text{font-family:Arial,sans-serif;fill:#252a2d;font-size:19px}
+    .small{font-size:16px;fill:#536169}
+    .title{font-size:25px;font-weight:600}
+    .guide{stroke:#8e9897;stroke-width:1.5;stroke-dasharray:5 5;fill:none}
+    .ray{stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <rect width="1000" height="460" rx="12" fill="#faf9f4"/>
+  <text x="35" y="42" class="title">The opening continues through the wall</text>
+  <text x="45" y="82">Front view</text>
+  <path d="M45 105H465V375H45Z M155 375V250A100 100 0 0 1 355 250V375Z" fill="#e5e1d4" fill-rule="evenodd" stroke="#66747b" stroke-width="2"/>
+  <path d="M120 250H390" class="guide"/>
+  <circle cx="255" cy="250" r="4" fill="#367668"/>
+  <path d="M255 250V150" stroke="#367668" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="268" y="207" fill="#367668">r</text>
+  <text x="120" y="277" class="small">spring y = s</text>
+  <text x="255" y="330" text-anchor="middle">opening</text>
+  <text x="255" y="414" class="small" text-anchor="middle">Straight sides below s, half-circle above s</text>
+  <text x="555" y="82">Top view below the spring height</text>
+  <rect x="600" y="125" width="100" height="235" fill="#e5e1d4" stroke="#66747b" stroke-width="2"/>
+  <rect x="835" y="125" width="100" height="235" fill="#e5e1d4" stroke="#66747b" stroke-width="2"/>
+  <path d="M570 125H950M570 360H950" class="guide"/>
+  <text x="555" y="117" class="small">entry</text>
+  <text x="555" y="387" class="small">exit</text>
+  <path d="M760 97V400" class="ray" stroke="#367668"/>
+  <path d="M714 97L835 265" class="ray" stroke="#a65b31"/>
+  <circle cx="835" cy="265" r="5" fill="#a65b31"/>
+  <text x="850" y="285" class="small">hit</text>
+  <text x="760" y="429" class="small" text-anchor="middle">No inner hit before exit: pass through</text>
+</svg>

@@ -1,0 +1,299 @@
+<body bgcolor=black>
+<center><canvas id=canvas width=800 height=800></canvas>
+<script src=../level0/webgl.js></script>
+<script>
+
+function Scene() {
+
+   this.vertexShader = `#version 300 es
+   in  vec3 aPos;
+   out vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.);
+      vPos = aPos;
+   }`;
+
+
+this.fragmentShader = `#version 300 es
+   precision highp float;
+
+   uniform float uTime;
+   in  vec3 vPos;
+   struct Hit {float t; vec3 n; float material;};
+   out vec4 fragColor;
+
+   const vec3 LIGHT_COL = vec3(1.0, 0.96, 0.80);
+   const float PANEL_EMIT = 6.0;
+   const vec3 AMBIENT = vec3(0.10, 0.095, 0.07);
+   const float ATTEN_K = 0.05;
+   const float WATER = 0.5;
+
+   float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+   }
+
+   float getFlicker(float t, vec2 id) {
+      float time = t + hash(id) * 4.0;
+      float cycle = floor(time / 100.);
+      bool faulty = hash(id + vec2(cycle, 17.0)) < 0.1;
+      bool flickering = mod(time, 4.0) < 0.02;
+
+      if (faulty && flickering) {
+         float pulse = hash(id + vec2(floor(time * 20.0), 53.0));
+         return pulse < 0.5 ? 0.03 : 1.0;
+      }
+      return 1.0;
+   }
+
+   void recordHit(float t, vec3 n, float material, inout Hit hit){
+      if (t > 0.002 && t < hit.t) hit = Hit(t, n, material);
+   }
+
+   bool inArch(vec2 p, float center, float radius, float spring){
+      // judge whether the point p is in the arch or not
+      p.x -= center;
+      return abs(p.x) < radius && p.y < spring + sqrt(max(0.0, radius * radius - p.x * p.x));
+   }
+
+
+   vec2 boxRange(vec3 rayOrigin, vec3 rayDir, vec3 center, vec3 size){
+      vec3 t0 = (center - size - rayOrigin) / rayDir;
+      vec3 t1 = (center + size - rayOrigin) / rayDir;
+
+      vec3 tMin = min(t0, t1);
+      vec3 tMax = max(t0, t1);
+
+      float tNear = max(max(tMin.x, tMin.y), tMin.z);
+      float tFar  = min(min(tMax.x, tMax.y), tMax.z);
+      return vec2(tNear, tFar);
+   }
+
+   vec3 boxNormal(vec3 p, vec3 size){
+   // p is a point on the box, while size is the size
+   vec3 q = abs(p / size); // we have the vector
+   if (q.x > q.y && q.x > q.z) return vec3(sign(p.x), 0, 0);
+   if (q.y > q.z) return vec3(0.0, sign(p.y), 0);
+   return vec3(0, 0, sign(p.z));
+   }
+
+   void archWall(vec3 ro, vec3 rd, vec3 size, vec3 center, inout Hit hit){
+      float radius = 3.5, spring = center.y - 1.0;
+      vec2 range = boxRange(ro, rd, center, size);
+      // if there is no intersect
+      if (range.x > range.y || range.y < 0.002 || range.x > hit.t) return;
+      float entry = max(range.x, 0.002);
+      vec3 p = ro + entry * rd;
+      if (!inArch(p.xy, center.x, radius, spring)){
+         recordHit(entry, boxNormal(p - center, size), 0.0, hit);
+         return;
+      }
+      if (rd.x != 0.0) {
+         float side = (center.x + sign(rd.x) * radius - ro.x) / rd.x;
+         if (side > entry && side < range.y && ro.y + side * rd.y < spring)
+            recordHit(side, vec3(-sign(rd.x), 0, 0), 0.0, hit);
+      }
+      vec2 q = ro.xy - vec2(center.x, spring);
+      float a = dot(rd.xy, rd.xy), b = dot(q, rd.xy);
+      float discriminant = b * b - a * (dot(q, q) - radius * radius);
+      if (discriminant > 0.0 && a > 0.00001) {
+         float t = (-b + sqrt(discriminant)) / a;
+         vec3 at = ro + t * rd;
+         if (t > entry && t < range.y && at.y >= spring)
+            recordHit(t, vec3(-normalize(at.xy - vec2(center.x, spring)), 0), 5.0, hit);
+      }
+   }
+
+void hitWater(vec3 ro, vec3 rd, vec2 center, vec2 range, float h, float tScene, inout vec4 color){
+
+   float tWater = (h - ro.y) / rd.y;
+
+
+   if (tWater > 0.002 && tWater < tScene) {
+      vec3 hitPos = ro + tWater * rd;
+
+      float x_lower = center.x - range.x;
+      float x_upper = center.x + range.x;
+      float z_lower = center.y - range.y;
+      float z_upper = center.y + range.y;
+
+      if (hitPos.x >= x_lower && hitPos.x <= x_upper &&
+          hitPos.z >= z_lower && hitPos.z <= z_upper) {
+
+         vec3 wcolor = vec3(0.35, 0.45, 0.18);
+
+         float ripple1 = sin(hitPos.x * 1.5 + hitPos.z * 2.0 - uTime * 0.8);
+         wcolor *= 1.0 + 0.1 * ripple1;
+         vec3 normal = vec3(0.0, 1.0, 0.0);
+
+         float NdotV = max(dot(normal, -rd), 0.0);
+         float F0 = 0.02;
+         float fresnel = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+         vec3 skyReflection = LIGHT_COL;
+         vec3 surfaceColor = mix(wcolor, skyReflection, fresnel);
+
+         color.rgb = mix(color.rgb, surfaceColor, WATER);
+      }
+   }
+}
+   void hitBox(vec3 rayOrigin, vec3 rayDir, vec3 center, vec3 size,
+               inout float tHit, inout vec3 normal) {
+      vec3 t0 = (center - size - rayOrigin) / rayDir;
+      vec3 t1 = (center + size - rayOrigin) / rayDir;
+      vec3 tMin = min(t0, t1);
+      vec3 tMax = max(t0, t1);
+      float tNear = max(max(tMin.x, tMin.y), tMin.z);
+      float tFar  = min(min(tMax.x, tMax.y), tMax.z);
+
+      if (tNear > 0.0 && tNear <= tFar && tNear < tHit) {
+         tHit = tNear;
+         normal = vec3(0.0);
+         if      (tNear == tMin.x) normal.x = -sign(rayDir.x);
+         else if (tNear == tMin.y) normal.y = -sign(rayDir.y);
+         else                      normal.z = -sign(rayDir.z);
+      }
+   }
+
+   void main() {
+      fragColor = vec4(0.0);
+
+      // Camera
+      vec3 camera = vec3(8.5, 1.0, 10.0);
+      vec3 target = vec3(-0.5, -3.0, -2.5);
+
+      vec3 forward = normalize(target - camera);
+      vec3 right   = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+      vec3 up      = cross(right, forward);
+
+      vec3 rayOrigin = camera;
+      vec3 rayDir = normalize(
+         forward + 0.8 * vPos.x * right + 0.8 * vPos.y * up
+      );
+
+      // Room + pool deck
+      vec3 boxSize = vec3(10., 3., 12.);
+      vec3 center = vec3(0.);
+      vec2 t = boxRange(rayOrigin, rayDir, center, boxSize);
+
+      if (t.y >= max(t.x, 0.0)) {
+         float tHit = t.y; // Interior back wall distance
+
+         // Determine which wall plane of the room was hit (normals point inward)
+         vec3 t0 = (center - boxSize - rayOrigin) / rayDir;
+         vec3 t1 = (center + boxSize - rayOrigin) / rayDir;
+         vec3 tMax = max(t0, t1);
+
+         vec3 normal = vec3(0.0);
+         if      (t.y == tMax.x) normal.x = -sign(rayDir.x);
+         else if (t.y == tMax.y) normal.y = -sign(rayDir.y);
+         else                    normal.z = -sign(rayDir.z);
+
+         // Objects inside room
+
+         hitBox(rayOrigin, rayDir, vec3(-8.4, -2.15, 0.0), vec3(1.6, 0.85, 12.0), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3( 8.4, -2.15, 0.0), vec3(1.6, 0.85, 12.0), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3(0.0, -2.15, -9.5), vec3(6.8, 0.85, 2.5), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3(0.0, -2.15,  9.5), vec3(6.8, 0.85, 2.5), tHit, normal);
+
+         hitBox(rayOrigin, rayDir, vec3(-6.92, -1.25, 0.0), vec3(0.12, 0.05, 7.24), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3( 6.92, -1.25, 0.0), vec3(0.12, 0.05, 7.24), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3(0.0, -1.25, -7.12), vec3(6.8, 0.05, 0.12), tHit, normal);
+         hitBox(rayOrigin, rayDir, vec3(0.0, -1.25,  7.12), vec3(6.8, 0.05, 0.12), tHit, normal);
+
+         // stairs
+         for (int i = 0; i < 4; i++) {
+            float height = 0.4 * float(i + 1);
+            float front = -8.0 - 0.7 * float(i);
+            hitBox(rayOrigin, rayDir,
+                   vec3(3.0, -1.3 + height * 0.5, (front - 12.0) * 0.5),
+                   vec3(6.5, height * 0.5, (front + 12.0) * 0.5), tHit, normal);
+         }
+
+         Hit archHit = Hit(tHit, normal, 0.0);
+         archWall(rayOrigin, rayDir, vec3(10.0, 3.0, 0.42), vec3(0.0), archHit);
+         tHit = archHit.t;
+         normal = archHit.n;
+
+         vec3 hit = rayOrigin + tHit * rayDir;
+
+         vec3 albedo = vec3(0.78, 0.76, 0.59);
+         if (normal.y < -0.5) albedo = vec3(0.19, 0.25, 0.24);
+         if (hit.y < -1.31) albedo = vec3(0.35, 0.47, 0.40);
+
+         bool isCeil = normal.y < -0.5 && hit.y > boxSize.y - 0.001;
+         bool isFloor = normal.y > 0.5;
+
+
+         vec2 uv = hit.xz;
+         if (abs(normal.x) > 0.5) uv = hit.zy;
+         else if (abs(normal.z) > 0.5) uv = hit.xy;
+         if (archHit.material == 5.0)
+            uv = vec2(atan(hit.x, hit.y + 1.0) * 3.5, hit.z);
+         float tileScale = hit.y < -1.31 ? 3.5 : (isFloor ? 2.5 : 3.0);
+         vec2 tile = uv * tileScale;
+         vec2 edge = min(fract(tile), 1.0 - fract(tile));
+         vec2 aa = max(fwidth(tile), vec2(0.002));
+         vec2 lines = 1.0 - smoothstep(vec2(0.015), vec2(0.015) + aa, edge);
+         float grout = max(lines.x, lines.y);
+         if (!isCeil) albedo = mix(albedo, albedo * 0.56, grout * 0.6);
+
+         vec2 local = hit.xz - 4.0 * floor(hit.xz / 4.0);
+         vec2 dc = abs(local - 2.0);
+         float panelMask = 1.0 - smoothstep(0.9, 0.96, max(dc.x, dc.y));
+
+
+         vec2 base = floor(hit.xz / 4.0 + vec2(0.0001));
+         vec3 diffuseSum = vec3(0.0);
+         float specSum = 0.0;
+         float glow = 0.0;
+
+         for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+               vec2 id = base + vec2(float(i), float(j));
+               vec2 c = id * 4.0 + 2.0;
+               vec3 lp = vec3(c.x, boxSize.y - 0.1, c.y);
+               vec3 L = lp - hit;
+               float d2 = dot(L, L);
+               vec3 Ln = L * inversesqrt(d2);
+               float brightness = getFlicker(uTime, id);
+               float atten = brightness / (1.0 + ATTEN_K * d2);
+
+               if (!isCeil) {
+                  diffuseSum += LIGHT_COL * max(0.0, dot(normal, Ln)) * atten;
+                  if (isFloor) {
+                     vec3 R = 2.0 * dot(normal, Ln) * normal - Ln;
+                     specSum += pow(max(0.0, dot(-rayDir, R)), 10.0) * atten;
+                  }
+               } else {
+                  vec2 dq = hit.xz - c;
+                  glow += brightness * exp(-dot(dq, dq) * 0.25);
+               }
+            }
+         }
+
+         vec3 color;
+         if (isCeil) {
+            color = albedo * (AMBIENT + 1.1 * glow * LIGHT_COL);
+            vec3 emissive = LIGHT_COL * PANEL_EMIT * getFlicker(uTime, base);
+            color = mix(color, emissive, panelMask);
+         } else {
+            color = albedo * (AMBIENT + diffuseSum)
+                  + specSum * 0.25 * LIGHT_COL;
+         }
+         color = color / (1.0 + color);
+         color = pow(color, vec3(1.0 / 2.2));
+
+         fragColor = vec4(color, 1.0);
+         hitWater(rayOrigin, rayDir, vec2(0.0, 0.0), vec2(6.8, 7.0), -1.35, tHit, fragColor);
+      }
+   }`;
+
+   let startTime = Date.now() / 1000;
+   this.update = () => {
+      setUniform('1f', 'uTime', Date.now() / 1000 - startTime);
+   };
+
+}
+
+gl_start(canvas, new Scene());
+</script>

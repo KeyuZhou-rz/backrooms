@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="430" viewBox="0 0 1000 430" role="img" aria-labelledby="title desc">
+  <title id="title">Flat water blends a surface color with the basin behind it</title>
+  <desc id="desc">A ray from the camera first meets a flat water surface and continues straight to the basin floor. The water intersection is closer than the floor intersection, and the two colors are mixed.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker>
+  </defs>
+  <style>
+    text{font-family:Arial,sans-serif;fill:#252a2d;font-size:20px}
+    .small{font-size:17px;fill:#536169}
+    .title{font-size:25px;font-weight:600}
+  </style>
+  <rect width="1000" height="430" rx="12" fill="#faf9f4"/>
+  <text x="35" y="42" class="title">One ray, a water hit, and the solid surface behind it</text>
+  <path d="M170 203V330H645V203" fill="#dce8df" stroke="#66747b" stroke-width="3"/>
+  <path d="M115 203H170M645 203H700" stroke="#66747b" stroke-width="7"/>
+  <path d="M170 225H645" stroke="#367668" stroke-width="4"/>
+  <text x="192" y="252" class="small">water plane y = h</text>
+  <circle cx="120" cy="102" r="7" fill="#a65b31"/>
+  <text x="95" y="83">camera</text>
+  <path d="M120 102L420 330" stroke="#a65b31" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <circle cx="282" cy="225" r="6" fill="#367668"/>
+  <circle cx="420" cy="330" r="6" fill="#a65b31"/>
+  <text x="307" y="211" class="small">t water</text>
+  <text x="444" y="311" class="small">t scene</text>
+  <text x="405" y="375" class="small" text-anchor="middle">The first version keeps this ray straight</text>
+  <rect x="730" y="130" width="230" height="192" rx="10" fill="#eeeae0"/>
+  <text x="750" y="169">Existing scene color</text>
+  <text x="750" y="209">Water surface color</text>
+  <path d="M845 225V253" stroke="#367668" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="845" y="286" text-anchor="middle">mix at 0.5</text>
+</svg>

@@ -12,6 +12,11 @@ This project serves primarily as a technical devlog to document how these effect
 
 I plan to break down each effect step by step—not only for anyone following the log, but to solidify my own mental models along the way.
 
+## Tutorials
+
+- [Building Level 0](level0/level0.md): ray intersections, lighting, ceiling panels, and flicker.
+- [Building the Poolrooms](swimming_pool/swimming_pool.md): the arch, tile seams, and simple moving water.
+
 ## Where Does the Code Come From?
 
 As of October 2026, the base `webgl.js` setup is adapted from my Computer Graphics coursework under Professor Ken Perlin. All the shader code and scene logic are—and will continue to be—written entirely by me.
