@@ -1,0 +1,377 @@
+<body bgcolor=#000000 text=#b8a860>
+<center><canvas id=canvas width=800 height=800></canvas>
+<p style="font-family:monospace">move the mouse to look around</p>
+<script src=webgl2.js></script>
+<script src=library.js></script>
+<script>
+
+function Scene(){
+
+   // same Phong fields as the other scenes; the shader picks a surface pattern from the normal
+   let wallpaper   = { ambient: [.22,.19,.08], diffuse: [.86,.77,.42], specular: [.10,.09,.05,12], roughness: 0.0, opacity: 1.0 };
+   let carpet      = { ambient: [.12,.10,.04], diffuse: [.55,.45,.21], specular: [.03,.03,.02, 4], roughness: 0.0, opacity: 1.0 };
+   let ceilingTile = { ambient: [.44,.42,.32], diffuse: [.80,.77,.62], specular: [.05,.05,.05, 6], roughness: 0.0, opacity: 1.0 };
+   // diffuse here is the murky color of the flood water
+   let water       = { ambient: [.06,.07,.03], diffuse: [.22,.24,.10], specular: [.9,.9,.8,80],   roughness: 0.15, opacity: 0.25, wave: 1.0 };
+
+   this.vertexSize = 8;
+   this.vertexAttributes = {
+      aPos: { size: 3, position: 0 },
+      aNor: { size: 3, position: 3 },
+      aUV:  { size: 2, position: 6 },
+   };
+
+   // world space: x right, y up, z toward the viewer. floor at y = 0, ceiling at y = H
+   const H = 2.7, WATER = 0.12;
+   const X0 = -8, X1 = 8, Z0 = -34, Z1 = 4;
+
+   // walls as boxes in the xz plane: [xmin, zmin, xmax, zmax], all floor to ceiling
+   let walls = [
+      // outer boundary
+      [-8.2,-34.2, 8.2,-34], [-8.2, 4, 8.2, 4.2], [-8.2,-34,-8, 4], [8,-34, 8.2, 4],
+      // main corridor, left and right sides with openings
+      [-1.8,-34,-1.6,-24], [-1.8,-22,-1.6,-14], [-1.8,-12.5,-1.6,-6], [-1.8,-4.5,-1.6, 4],
+      [ 1.6,-34, 1.8,-28], [ 1.6,-26, 1.8,-18], [ 1.6,-16, 1.8,-9],   [ 1.6,-7.5, 1.8, 4],
+      // doorway at the end of the corridor
+      [-1.6,-30.2,-0.6,-30], [0.6,-30.2, 1.6,-30],
+      // stubs in the side rooms
+      [-5.5,-9.2,-3.5,-9], [-5.6,-20,-5.4,-16], [-8,-26.2,-5,-26],
+      [ 3.5,-13.2, 5.5,-13], [5.4,-24, 5.6,-20], [5,-5.2, 8,-5],
+   ];
+
+   let quad = (out, p0, p1, p2, p3, n) => {
+      let v = (p, u, w) => out.push(...p, ...n, u, w);
+      v(p0,0,0); v(p1,1,0); v(p2,1,1);
+      v(p0,0,0); v(p2,1,1); v(p3,0,1);
+   };
+
+   let createWalls = () => {
+      let out = [];
+      for (let [x0, z0, x1, z1] of walls) {
+         quad(out, [x0,0,z0], [x0,0,z1], [x0,H,z1], [x0,H,z0], [-1,0, 0]);
+         quad(out, [x1,0,z1], [x1,0,z0], [x1,H,z0], [x1,H,z1], [ 1,0, 0]);
+         quad(out, [x1,0,z0], [x0,0,z0], [x0,H,z0], [x1,H,z0], [ 0,0,-1]);
+         quad(out, [x0,0,z1], [x1,0,z1], [x1,H,z1], [x0,H,z1], [ 0,0, 1]);
+      }
+      return out;
+   };
+
+   let createPlane = (y, ny) => {
+      let out = [];
+      quad(out, [X0,y,Z0], [X1,y,Z0], [X1,y,Z1], [X0,y,Z1], [0,ny,0]);
+      return out;
+   };
+
+   // flat grid in the xz plane at the water level; the vertex shader adds the waves
+   let createWater = step => {
+      let nx = Math.round((X1 - X0) / step), nz = Math.round((Z1 - Z0) / step);
+      let vertices = [];
+      for (let i = 0; i <= nx; i++)
+         for (let j = 0; j <= nz; j++)
+            vertices.push({ x: X0 + i * step, z: Z0 + j * step, u: i / nx, v: j / nz });
+
+      let grid = [];
+      let push = k => { let v = vertices[k]; grid.push(v.x, WATER, v.z, 0, 1, 0, v.u, v.v); };
+      const stride = nz + 1;
+      for (let i = 0; i < nx; i++)
+         for (let j = 0; j < nz; j++) {
+            const a = i * stride + j, b = a + 1, c = a + stride, d = c + 1;
+            push(a); push(c); push(b);
+            push(b); push(c); push(d);
+         }
+      return grid;
+   };
+
+   // draw order matters: the transparent water goes last
+   this.shapes = [
+      { material: wallpaper,   vertices: createWalls(),      matrix: new Matrix() },
+      { material: carpet,      vertices: createPlane(0,  1), matrix: new Matrix() },
+      { material: ceilingTile, vertices: createPlane(H, -1), matrix: new Matrix() },
+      { material: water,       vertices: createWater(0.25),  matrix: new Matrix() },
+   ];
+
+   let f = x => x.toFixed(2);
+
+   // shared by both shaders: wall distance field, flow field and the flow-advected waves
+   let common = `
+   const float H = ${f(H)};
+   const float WATER = ${f(WATER)};
+   const int NW = ${walls.length};
+   const vec4 WALLS[NW] = vec4[NW](${walls.map(w => `vec4(${w.map(f).join(',')})`).join(',')});
+
+   float boxSDF(vec2 p, vec4 b){
+      vec2 d = abs(p - 0.5*(b.xy + b.zw)) - 0.5*(b.zw - b.xy);
+      return length(max(d, 0.)) + min(max(d.x, d.y), 0.);
+   }
+   float wallSDF(vec2 p){
+      float m = 1e3;
+      for (int i = 0; i < NW; i++) m = min(m, boxSDF(p, WALLS[i]));
+      return m;
+   }
+
+   // the stream meanders a little down the corridor, like the river centerline
+   float centerLine(float z){ return 0.35*sin(0.35*z) + 0.15*sin(0.8*z + 1.2); }
+   float centerLineD(float z){ return 0.35*0.35*cos(0.35*z) + 0.15*0.8*cos(0.8*z + 1.2); }
+
+   // flows toward the viewer (+z); fastest in the middle of the corridor, slow in the side rooms, 0 at walls
+   vec2 flowVel(vec2 p){
+      const float U0 = 0.6;
+      float s = clamp((p.x - centerLine(p.y)) / 1.6, -1.0, 1.0);
+      float inCorridor = 1.0 - smoothstep(1.6, 2.0, abs(p.x));
+      float profile = mix(0.25, 1.0 - s*s, inCorridor) * smoothstep(0.0, 0.5, wallSDF(p));
+      return U0 * profile * normalize(vec2(centerLineD(p.y), 1.0));
+   }
+
+   // returns (height, dh/dx, dh/dz); two phase-shifted layers advected by the flow, same as the river
+   vec3 waves(vec2 p, float t, float amp){
+      const float lam[5] = float[5](0.9, 0.5, 0.22, 0.16, 0.2);
+      const float ang[5] = float[5](0., -25., 35., -55., 60.);
+      vec2 vel = flowVel(p);
+      vec3 r = vec3(0.);
+      for (int layer = 0; layer < 2; layer++){
+         float ph = fract(t / 2.0 + 0.5 * float(layer));
+         float wt = 1.0 - abs(2.0*ph - 1.0);
+         vec2 q = p - vel * 2.0 * ph;
+         for (int i = 0; i < 5; i++){
+            float a = radians(ang[i]);
+            vec2 d = vec2(sin(a), cos(a));     // angles measured from the flow direction +z
+            float k = (2.*3.14159) / lam[i];
+            float w = sqrt(0.4*k);
+            float A = amp * lam[i] / 60.;
+            float theta = k*dot(d, q) - w*t;
+            r.x  += wt*A * sin(theta);
+            r.yz += wt*A * k * cos(theta) * d;
+         }
+      }
+      return r;
+   }
+   `;
+
+   this.vertexShader = `#version 300 es
+   in vec3 aPos, aNor;
+   in vec2 aUV;
+   out vec3 vPos, vNor, vWorld;
+   out vec2 vUV;
+   uniform mat4 uMF, uMI;
+   uniform float uTime;
+   uniform float uWave;
+   ${common}
+   void main(){
+      vec3 p = aPos;
+      if (uWave > 0.5)
+         p.y += waves(p.xz, uTime, 1.0).x;
+      vec4 pos = uMF * vec4(p, 1.0);
+      vPos = pos.xyz / pos.w;
+      vPos.z *= -1.0;
+      vNor = aNor;
+      vWorld = p;
+      vUV = aUV;
+      // keep w so the GPU clips geometry behind the camera correctly
+      gl_Position = vec4(pos.x, pos.y, -pos.z, pos.w);
+   }
+   `;
+
+   this.fragmentShader = `#version 300 es
+   precision highp float;
+   ${common}
+   in  vec3 vPos, vNor, vWorld;
+   in  vec2 vUV;
+   out vec4 fragColor;
+
+   uniform vec3  AMBIENT, DIFFUSE;
+   uniform vec4  SPEC;
+   uniform float OPACITY, ROUGHNESS;
+   uniform float uWave, uTime;
+   uniform vec3  uEye, uWallColor, uCeilColor;
+
+   const vec3 LIGHTCOL = vec3(1.0, 0.96, 0.80);
+   const vec3 FOG      = vec3(0.40, 0.36, 0.18);
+
+   // fluorescent panels on a grid: x = 4.5*i (i = -1..1), z = 4*j (j = -8..0)
+   float lightLevel(vec2 cell){
+      if (abs(cell.x) > 1.0 || cell.y < -8.0 || cell.y > 0.0) return 0.0;
+      if (cell == vec2(1., -6.)) return 0.0;                        // dead tube
+      if (cell == vec2(0., -5.))                                    // flickering tube
+         return noise(vec3(uTime * 7.0, 3.1, 0.7)) > 0.12 ? 0.15 : 1.0;
+      return 1.0;
+   }
+   vec3 lightPos(vec2 cell){ return vec3(4.5*cell.x, H - 0.25, 4.0*cell.y); }
+
+   // panel glow plus a soft halo around it on the ceiling
+   vec3 ceilingEmission(vec2 xz){
+      vec2 cell = vec2(round(xz.x / 4.5), round(xz.y / 4.0));
+      float I = lightLevel(cell);
+      vec2 l = abs(xz - cell * vec2(4.5, 4.0)) - vec2(0.32, 0.65);
+      float inside = step(max(l.x, l.y), 0.0);
+      return LIGHTCOL * I * (1.5 * inside + 0.25 * exp(-5.0 * length(max(l, 0.))));
+   }
+
+   // Phong with the nearby ceiling lights
+   vec3 shade(vec3 P, vec3 N, vec3 tex){
+      vec3 V = normalize(uEye - P);
+      vec3 c = AMBIENT * tex;
+      vec2 c0 = vec2(round(P.x / 4.5), round(P.z / 4.0));
+      for (int i = -1; i <= 1; i++)
+      for (int j = -2; j <= 2; j++){
+         vec2 cell = c0 + vec2(i, j);
+         float I = lightLevel(cell);
+         if (I <= 0.0) continue;
+         vec3 L = lightPos(cell) - P;
+         float d2 = dot(L, L);
+         L *= inversesqrt(d2);
+         float att = I * 2.2 / (1.0 + 0.35 * d2);
+         vec3 R = 2. * dot(N, L) * N - L;
+         c += att * LIGHTCOL * (max(0., dot(N, L)) * DIFFUSE * tex
+                              + pow(max(0., dot(R, V)), SPEC.w) * SPEC.rgb);
+      }
+      return c;
+   }
+
+   // the classic mono-yellow wallpaper, water-stained above the flood line
+   vec3 wallTex(vec3 P, vec3 N){
+      float u = abs(N.x) > 0.5 ? P.z : P.x;
+      vec2 g = vec2(u / 0.30, P.y / 0.36);
+      float stripe  = 1.0 - 0.07 * smoothstep(0.42, 0.5, abs(fract(g.x) - 0.5));
+      vec2  m = fract(g + vec2(0.5 * mod(floor(g.y), 2.0), 0.0)) - 0.5;
+      float diamond = 1.0 - 0.08 * (1.0 - smoothstep(0.10, 0.14, abs(m.x) + abs(m.y)));
+      float grime   = 0.92 + 0.10 * noise(P * 1.7);
+      vec3 c = vec3(stripe * diamond * grime);
+
+      float h = WATER + 0.25 + 0.10 * noise(vec3(u * 1.1, 0.0, 3.0)) + 0.03 * noise(vec3(u * 6.0, 0.0, 1.0));
+      float soak = 1.0 - smoothstep(h - 0.15, h, P.y);
+      float tide = exp(-pow((P.y - h) / 0.015, 2.0));
+      c *= mix(vec3(1.0), vec3(0.60, 0.48, 0.28), soak);
+      c *= 1.0 - 0.25 * tide;
+      return c;
+   }
+
+   // soaked carpet (darker, like the river's wet bank) lit by caustics from the same wave field
+   vec3 carpetTex(vec3 P, float amp){
+      float fib  = noise(vec3(P.xz * 55.0, 0.0));
+      float blot = noise(vec3(P.xz * 1.3, 7.0));
+      float h = waves(P.xz, uTime, amp).x;
+      float caustic = 1.0 + 0.6 * smoothstep(0.0, 0.025, h);
+      return vec3(0.6 * (1.0 + 0.25 * fib + 0.3 * blot) * caustic);
+   }
+
+   vec3 ceilingTex(vec3 P){
+      vec2 g = abs(fract(P.xz / 0.6) - 0.5);
+      float grid  = 1.0 - 0.3 * smoothstep(0.46, 0.49, max(g.x, g.y));
+      float stain = 1.0 - 0.15 * smoothstep(0.1, 0.4, noise(vec3(P.xz * 0.6, 2.0)));
+      return vec3(grid * stain * (0.95 + 0.05 * noise(P * 20.0)));
+   }
+
+   vec3 fog(vec3 c, float d){ return mix(c, FOG, 1.0 - exp(-0.05 * d)); }
+
+   // one-bounce reflection off the water: ray vs. wall boxes and the ceiling plane
+   vec3 traceReflection(vec3 P, vec3 R){
+      if (R.y <= 0.001) return FOG * 0.3;
+      float tC = (H - P.y) / R.y;
+      float tW = 1e4;
+      vec3 nW = vec3(0.);
+      vec2 d = vec2(abs(R.x) < 1e-5 ? 1e-5 : R.x, abs(R.z) < 1e-5 ? 1e-5 : R.z);
+      for (int i = 0; i < NW; i++){
+         vec2 t0 = (WALLS[i].xy - P.xz) / d, t1 = (WALLS[i].zw - P.xz) / d;
+         vec2 tn = min(t0, t1), tf = max(t0, t1);
+         float tNear = max(tn.x, tn.y), tFar = min(tf.x, tf.y);
+         if (tNear < tFar && tNear > 0.0 && tNear < tW){
+            tW = tNear;
+            nW = tn.x > tn.y ? vec3(-sign(d.x), 0., 0.) : vec3(0., 0., -sign(d.y));
+         }
+      }
+      vec3 c;
+      float t;
+      if (tW < tC){
+         vec3 Q = P + tW * R;
+         c = uWallColor * wallTex(Q, nW) * (0.45 + 0.5 * Q.y / H);
+         t = tW;
+      } else {
+         vec3 Q = P + tC * R;
+         c = uCeilColor * ceilingTex(Q) * 0.7 + 1.5 * ceilingEmission(Q.xz);
+         t = tC;
+      }
+      return fog(c, t);
+   }
+
+   void main() {
+      vec3 P = vWorld;
+      vec3 N = normalize(vNor);
+      float dist = length(uEye - P);
+      float amp  = exp(-0.07 * dist);    // fade small ripples with distance to avoid shimmering
+      vec3 color;
+      float alpha = 1.0;
+
+      if (uWave > 0.5){
+         vec3 wv = waves(P.xz, uTime, amp);
+         vec3 nor = normalize(vec3(-wv.y, 1.0, -wv.z));
+         if (ROUGHNESS > 0.0){
+            vec3 microBump = vec3(noise(vec3(P.xz * 25.0, uTime)), 0.0, noise(vec3(P.xz * 25.0 + 17.0, uTime)));
+            nor = normalize(nor + ROUGHNESS * amp * microBump);
+         }
+         vec3 V = normalize(uEye - P);
+
+         //Fresnel
+         float F = 0.15 + 0.85 * pow(1.0 - max(0., dot(nor, V)), 4.0);
+         vec3 refl = traceReflection(P, reflect(-V, nor));
+         vec3 murk = shade(P, nor, vec3(1.0));
+
+         // light travelling through the water to the carpet: T = e^(-l), longer path at grazing angles
+         float pathLen = WATER / max(V.y, 0.05);
+         float T = exp(-3.0 * pathLen);
+         color = mix(murk, refl, F);
+         alpha = clamp(OPACITY + 0.75 * (1.0 - T) + F, 0.0, 1.0);
+
+         // foam where the stream runs along the walls
+         float n = noise(vec3(P.x * 7.0, P.z * 7.0 - uTime * 1.5, uTime * 0.4));
+         float Iedge = exp(-wallSDF(P.xz) / 0.07) * smoothstep(-0.25, 0.25, n + 0.1);
+         color = mix(color, vec3(0.75, 0.72, 0.55), 0.8 * Iedge);
+         alpha = max(alpha, 0.85 * Iedge);
+      }
+      else if (N.y >  0.5) color = shade(P, N, carpetTex(P, amp));
+      else if (N.y < -0.5) color = shade(P, N, ceilingTex(P)) + ceilingEmission(P.xz);
+      else                 color = shade(P, N, wallTex(P, N));
+
+      color = fog(color, dist);
+
+      // found-footage look: film grain and vignette
+      vec2 ndc = gl_FragCoord.xy / 400.0 - 1.0;
+      color *= 1.0 - 0.35 * dot(ndc, ndc);
+      color += 0.05 * noise(vec3(gl_FragCoord.xy * 0.9, uTime * 60.0));
+
+      fragColor = vec4(color, alpha);
+   }`;
+
+   let startTime = Date.now() / 1000;
+   let look = [0, 0];
+
+   this.update = () => {
+      let time = Date.now() / 1000 - startTime;
+      setUniform('1f', 'uTime', time);
+
+      // slowly wade down the corridor and back, looking where the mouse points
+      let walk = 0.5 - 0.5 * Math.cos(time * 0.05);
+      let eye = [0.15 * Math.sin(time * 0.23), 1.55 + 0.015 * Math.sin(time * 2.6), 2.0 - 22.0 * walk];
+      look[0] += (cursor[0] * 1.0 - look[0]) * 0.06;
+      look[1] += (cursor[1] * 0.4 - look[1]) * 0.06;
+
+      setUniform('3fv', 'uEye', eye);
+      setUniform('3fv', 'uWallColor', wallpaper.diffuse);
+      setUniform('3fv', 'uCeilColor', ceilingTile.diffuse);
+
+      // every shape gets its own copy of the camera, since webgl2.js inverts the matrix in place
+      for (let shape of this.shapes) {
+         let m = shape.matrix;
+         m.identity();
+         m.scale(1.3, 1.3, 1);
+         m.perspective(1);
+         m.move(0, 0, 1);              // put the eye at z = 1, the focal point of perspective(1)
+         m.turnX(0.05 - look[1]);
+         m.turnY(look[0]);
+         m.move(-eye[0], -eye[1], -eye[2]);
+      }
+   }
+
+}
+
+gl_start(canvas, new Scene());
+</script>

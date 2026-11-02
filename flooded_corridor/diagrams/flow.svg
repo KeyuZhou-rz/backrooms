@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="460" viewBox="0 0 1000 460" role="img" aria-labelledby="title desc">
+  <title id="title">The flow field across the corridor</title>
+  <desc id="desc">Top view of the corridor. Arrows point toward the viewer and are longest along a meandering center line, shrinking to zero at both walls. A side opening has slow flow.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker>
+  </defs>
+  <style>
+    text{font-family:Arial,sans-serif;fill:#252a2d;font-size:20px}
+    .small{font-size:17px;fill:#536169}
+    .title{font-size:25px;font-weight:600}
+    .v{stroke:#367668;stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <rect width="1000" height="460" rx="12" fill="#faf9f4"/>
+  <text x="35" y="42" class="title">Top view: fast in the middle, still at the walls</text>
+
+  <!-- corridor walls (flow runs left to right = toward the viewer) -->
+  <rect x="60" y="110" width="560" height="12" fill="#c9b46a"/>
+  <rect x="60" y="358" width="300" height="12" fill="#c9b46a"/>
+  <rect x="440" y="358" width="180" height="12" fill="#c9b46a"/>
+  <text x="372" y="404" class="small">opening</text>
+
+  <!-- meandering center line -->
+  <path d="M60 240C140 205 220 205 300 240S460 275 540 240 600 220 620 230" stroke="#a65b31" stroke-width="2.5" stroke-dasharray="7 6" fill="none"/>
+  <text x="70" y="200" class="small" fill="#a65b31">centerLine(z)</text>
+
+  <!-- velocity arrows along one cross section -->
+  <line x1="330" y1="122" x2="330" y2="358" stroke="#9aa4a8" stroke-width="2"/>
+  <path class="v" d="M330 140H342"/>
+  <path class="v" d="M330 170H372"/>
+  <path class="v" d="M330 200H398"/>
+  <path class="v" d="M330 230H410"/>
+  <path class="v" d="M330 260H404"/>
+  <path class="v" d="M330 290H384"/>
+  <path class="v" d="M330 320H352"/>
+  <path class="v" d="M330 345H336"/>
+  <text x="246" y="94" class="small">walls: U = 0</text>
+  <path d="M440 380V420" stroke="#367668" stroke-width="2" fill="none"/>
+  <path class="v" d="M400 430H418"/>
+  <text x="430" y="436" class="small">side rooms: slow</text>
+
+  <text x="640" y="245" class="small">flow → viewer (+z)</text>
+
+  <!-- formula box -->
+  <rect x="700" y="110" width="270" height="260" rx="10" fill="#eeeae0"/>
+  <text x="720" y="150">s = (x − c(z)) / 1.6</text>
+  <text x="720" y="195">profile = 1 − s²</text>
+  <text x="720" y="240">× smoothstep(0, 0.5, sdf)</text>
+  <text x="720" y="295" class="small">sdf: distance to the</text>
+  <text x="720" y="318" class="small">nearest wall box</text>
+</svg>

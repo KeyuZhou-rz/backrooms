@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+  <title id="title">Two layers with triangle weights hide the reset</title>
+  <desc id="desc">Two triangle-shaped weight curves, offset by half a period. Each layer resets when its own weight is zero, and the two weights always add up to one.</desc>
+  <style>
+    text{font-family:Arial,sans-serif;fill:#252a2d;font-size:20px}
+    .small{font-size:17px;fill:#536169}
+    .title{font-size:25px;font-weight:600}
+  </style>
+  <rect width="1000" height="420" rx="12" fill="#faf9f4"/>
+  <text x="35" y="42" class="title">Two layers take turns, so the jump is never seen</text>
+
+  <!-- axes: t from 0 to 6 s, 100 px per second; weight 0..1 = 300..140 -->
+  <line x1="90" y1="300" x2="720" y2="300" stroke="#9aa4a8" stroke-width="2"/>
+  <line x1="90" y1="300" x2="90" y2="120" stroke="#9aa4a8" stroke-width="2"/>
+  <text x="62" y="146" class="small">1</text>
+  <text x="62" y="305" class="small">0</text>
+  <text x="90" y="330" class="small" text-anchor="middle">0</text>
+  <text x="290" y="330" class="small" text-anchor="middle">2 s</text>
+  <text x="490" y="330" class="small" text-anchor="middle">4 s</text>
+  <text x="690" y="330" class="small" text-anchor="middle">6 s</text>
+  <text x="400" y="365" class="small" text-anchor="middle">time</text>
+
+  <!-- layer 0: ph = fract(t/2): zero at 0,2,4,6 -->
+  <path d="M90 300L190 140L290 300L390 140L490 300L590 140L690 300" stroke="#367668" stroke-width="3.5" fill="none"/>
+  <!-- layer 1: offset by half: zero at 1,3,5 -->
+  <path d="M90 140L190 300L290 140L390 300L490 140L590 300L690 140" stroke="#a65b31" stroke-width="3.5" fill="none" stroke-dasharray="9 6"/>
+
+  <circle cx="290" cy="300" r="7" fill="#367668"/>
+  <text x="250" y="390" class="small">layer 0 resets here, at weight 0</text>
+
+  <rect x="745" y="110" width="225" height="200" rx="10" fill="#eeeae0"/>
+  <line x1="765" y1="150" x2="805" y2="150" stroke="#367668" stroke-width="3.5"/>
+  <text x="815" y="156">layer 0</text>
+  <line x1="765" y1="190" x2="805" y2="190" stroke="#a65b31" stroke-width="3.5" stroke-dasharray="9 6"/>
+  <text x="815" y="196">layer 1</text>
+  <text x="765" y="245">w₀ + w₁ = 1</text>
+  <text x="765" y="282" class="small">at every moment</text>
+</svg>

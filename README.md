@@ -16,6 +16,7 @@ I plan to break down each effect step by step—not only for anyone following th
 
 - [Building Level 0](level0/level0.md): ray intersections, lighting, ceiling panels, and flicker.
 - [Building the Poolrooms](swimming_pool/swimming_pool.md): the arch, tile seams, and simple moving water.
+- [Flooding the Corridor](flooded_corridor/flooded_corridor.md): triangle meshes, flow-advected waves, and a one-bounce reflection.
 
 ## Where Does the Code Come From?
 

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="title desc">
+  <title id="title">One reflection bounce off the water</title>
+  <desc id="desc">Side view. A viewing ray hits the water, reflects about the wave normal, and travels up. One reflected ray reaches the ceiling and lands on a light panel. Another reflected ray hits a wall first.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker>
+  </defs>
+  <style>
+    text{font-family:Arial,sans-serif;fill:#252a2d;font-size:20px}
+    .small{font-size:17px;fill:#536169}
+    .title{font-size:25px;font-weight:600}
+  </style>
+  <rect width="1000" height="440" rx="12" fill="#faf9f4"/>
+  <text x="35" y="42" class="title">Reflect once, then ask: wall or ceiling first?</text>
+
+  <!-- ceiling, floor, water -->
+  <line x1="60" y1="90" x2="940" y2="90" stroke="#66747b" stroke-width="5"/>
+  <rect x="420" y="90" width="110" height="9" fill="#f2d36b"/>
+  <text x="430" y="125" class="small">panel</text>
+  <line x1="60" y1="380" x2="940" y2="380" stroke="#8b6a3a" stroke-width="5"/>
+  <path d="M60 350Q100 340 140 350T220 350T300 350T380 350T460 350T540 350T620 350T700 350T780 350T860 350T940 350" stroke="#367668" stroke-width="3" fill="none"/>
+  <text x="70" y="410" class="small">water at y = WATER, rippled normal</text>
+  <rect x="860" y="90" width="22" height="290" fill="#c9b46a"/>
+  <text x="790" y="130" class="small">wall</text>
+
+  <!-- eye and ray 1 -->
+  <circle cx="110" cy="200" r="7" fill="#a65b31"/>
+  <text x="80" y="185">eye</text>
+  <path d="M110 200L330 350" stroke="#a65b31" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M330 350L470 94" stroke="#a65b31" stroke-width="3" fill="none" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  <path d="M330 350L345 300" stroke="#367668" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="350" y="300" class="small">N</text>
+  <text x="485" y="160" class="small">tC: hits the ceiling, inside a panel</text>
+
+  <!-- ray 2 hitting the wall -->
+  <path d="M110 200L640 350" stroke="#566f9d" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M640 350L860 230" stroke="#566f9d" stroke-width="3" fill="none" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  <text x="620" y="250" class="small">tW &lt; tC: the wall wins</text>
+</svg>
