@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <link rel="icon" href="data:," />
+      <title>Exit Offline / Backrooms Escape</title>
+      <link rel="stylesheet" href="style.css" />
+   </head>
+   <body>
+      <canvas id="scene" aria-label="First-person Backrooms escape game"></canvas>
+      <div id="vignette"></div>
+      <header>
+         <div>
+            <span class="eyebrow">FACILITY 037 / SINGLE PLAYER</span>
+            <h1>EXIT<span>OFFLINE</span></h1>
+         </div>
+         <div id="objective">
+            <small>OBJECTIVE / 01</small>
+            <p>Reach the Pump Room. Restore exit power.</p>
+            <span id="area">Yellow Colonnade</span>
+         </div>
+      </header>
+      <div id="crosshair">+</div>
+      <div id="prompt"></div>
+      <div id="toast" role="status"></div>
+      <aside id="map-panel">
+         <div class="panel-label">FACILITY MAP <span>M Hide</span></div>
+         <canvas id="map" width="240" height="180" aria-label="Map of four areas and five connecting corridors"></canvas>
+         <p>● You · Exit: west wall of the Colonnade</p>
+      </aside>
+      <aside id="radio">
+         <div class="panel-label">
+            <span class="live-dot"></span> SEEKER / LIVE FEED <button id="chat-toggle">Chat [T]</button>
+         </div>
+         <p id="position" aria-live="polite">Location: Storage · north side · Searching</p>
+         <div id="ai-status">Waiting for connection</div>
+         <div id="messages" role="log" aria-label="Conversation between the seeker and player"></div>
+         <form id="chat-form" hidden>
+            <label for="message">Send a decoy message · The game continues during chat</label>
+            <div>
+               <input id="message" maxlength="240" autocomplete="off" placeholder="Example: I'm at the pool" /><button
+                  type="submit"
+               >
+                  Send
+               </button>
+            </div>
+         </form>
+      </aside>
+      <footer>
+         <span>WASD Move · Mouse Look · Shift Run · E Interact · T Chat · Esc Pause</span
+         ><button id="restart">Restart</button>
+      </footer>
+      <div id="overlay">
+         <section id="card">
+            <div class="eyebrow" id="card-kicker">MAINTENANCE RECORD / 037</div>
+            <h2 id="card-title">The lights are on.<br />The exit is offline.</h2>
+            <p id="card-copy">
+               Restore power in the Pump Room, then return to the Colonnade exit.<br />The seeker broadcasts its real location. The startup sound will draw it toward you.
+            </p>
+            <div id="briefing">
+               <span>01 Colonnade ↔ 02 Storage ↔ 04 Pump Room</span><span>01 Colonnade ↔ 03 Pool ↔ 04 Pump Room</span
+               ><span>02 Storage ↔ 03 Pool / Service corridor</span>
+               <p>Use the loops to get away. Close doors to buy time. Running makes noise.<br />Stay on the poolside walkway. Chat is optional.</p>
+            </div>
+            <button id="begin">Enter facility <span>→</span></button
+            ><small id="card-note">Click to capture the mouse · Press Esc to pause</small>
+         </section>
+      </div>
+      <script type="module" src="game.js"></script>
+   </body>
+</html>
